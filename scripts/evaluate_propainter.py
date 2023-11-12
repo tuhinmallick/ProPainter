@@ -27,11 +27,7 @@ warnings.filterwarnings("ignore")
 
 # sample reference frames from the whole video
 def get_ref_index(neighbor_ids, length, ref_stride=10):
-    ref_index = []
-    for i in range(0, length, ref_stride):
-        if i not in neighbor_ids:
-            ref_index.append(i)
-    return ref_index
+    return [i for i in range(0, length, ref_stride) if i not in neighbor_ids]
 
 
 def main_worker(args):

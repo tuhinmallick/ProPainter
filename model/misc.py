@@ -60,7 +60,7 @@ def gpu_is_available():
     if IS_HIGH_VERSION:
         if torch.backends.mps.is_available():
             return True
-    return True if torch.cuda.is_available() and torch.backends.cudnn.is_available() else False
+    return bool(torch.cuda.is_available() and torch.backends.cudnn.is_available())
 
 def get_device(gpu_id=None):
     if gpu_id is None:
@@ -72,8 +72,12 @@ def get_device(gpu_id=None):
 
     if IS_HIGH_VERSION:
         if torch.backends.mps.is_available():
-            return torch.device('mps'+gpu_str)
-    return torch.device('cuda'+gpu_str if torch.cuda.is_available() and torch.backends.cudnn.is_available() else 'cpu')
+            return torch.device(f'mps{gpu_str}')
+    return torch.device(
+        f'cuda{gpu_str}'
+        if torch.cuda.is_available() and torch.backends.cudnn.is_available()
+        else 'cpu'
+    )
 
 
 def set_random_seed(seed):
@@ -113,11 +117,7 @@ def scandir(dir_path, suffix=None, recursive=False, full_path=False):
     def _scandir(dir_path, suffix, recursive):
         for entry in os.scandir(dir_path):
             if not entry.name.startswith('.') and entry.is_file():
-                if full_path:
-                    return_path = entry.path
-                else:
-                    return_path = osp.relpath(entry.path, root)
-
+                return_path = entry.path if full_path else osp.relpath(entry.path, root)
                 if suffix is None:
                     yield return_path
                 elif return_path.endswith(suffix):

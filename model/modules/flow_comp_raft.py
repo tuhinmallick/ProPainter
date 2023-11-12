@@ -167,8 +167,7 @@ def ternary_loss(flow_comp, flow_gt, mask, current_frame, shift_frame, scale_fac
     warped_sc = flow_warp(shift_frame, flow_gt.permute(0, 2, 3, 1))
     noc_mask = torch.exp(-50. * torch.sum(torch.abs(current_frame - warped_sc), dim=1).pow(2)).unsqueeze(1)
     warped_comp_sc = flow_warp(shift_frame, flow_comp.permute(0, 2, 3, 1))
-    loss = ternary_loss2(current_frame, warped_comp_sc, noc_mask, mask)
-    return loss
+    return ternary_loss2(current_frame, warped_comp_sc, noc_mask, mask)
 
 class FlowLoss(nn.Module):
     def __init__(self):
@@ -222,8 +221,7 @@ def edgeLoss(preds_edges, edges):
     pos_weights = (num_pos / (num_pos + num_neg)).unsqueeze(1).unsqueeze(2).unsqueeze(3)
     weight = neg_weights * mask + pos_weights * (1 - mask)  # weight for debug
     losses = F.binary_cross_entropy_with_logits(preds_edges.float(), edges.float(), weight=weight, reduction='none')
-    loss = torch.mean(losses)
-    return loss
+    return torch.mean(losses)
 
 class EdgeLoss(nn.Module):
     def __init__(self):
@@ -250,8 +248,6 @@ class FlowSimpleLoss(nn.Module):
         self.l1_criterion = nn.L1Loss()
 
     def forward(self, pred_flows, gt_flows):
-        # pred_flows: b t-1 2 h w
-        loss = 0
         h, w = pred_flows[0].shape[-2:]
         h_orig, w_orig = gt_flows[0].shape[-2:]
         pred_flows = [f.view(-1, 2, h, w) for f in pred_flows]
@@ -259,7 +255,7 @@ class FlowSimpleLoss(nn.Module):
 
         ds_factor = 1.0*h/h_orig
         gt_flows = [F.interpolate(f, scale_factor=ds_factor, mode='area') * ds_factor for f in gt_flows]
-        for i in range(len(pred_flows)):
-            loss += self.l1_criterion(pred_flows[i], gt_flows[i])
-
-        return loss
+        return sum(
+            self.l1_criterion(pred_flows[i], gt_flows[i])
+            for i in range(len(pred_flows))
+        )

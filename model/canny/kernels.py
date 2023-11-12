@@ -366,7 +366,9 @@ def get_gaussian_kernel1d(kernel_size: int, sigma: float, force_even: bool = Fal
         tensor([0.1201, 0.2339, 0.2921, 0.2339, 0.1201])
     """
     if not isinstance(kernel_size, int) or ((kernel_size % 2 == 0) and not force_even) or (kernel_size <= 0):
-        raise TypeError("kernel_size must be an odd positive integer. " "Got {}".format(kernel_size))
+        raise TypeError(
+            f"kernel_size must be an odd positive integer. Got {kernel_size}"
+        )
     window_1d: torch.Tensor = gaussian(kernel_size, sigma)
     return window_1d
 
@@ -395,9 +397,10 @@ def get_gaussian_discrete_kernel1d(kernel_size: int, sigma: float, force_even: b
         tensor([0.1096, 0.2323, 0.3161, 0.2323, 0.1096])
     """
     if not isinstance(kernel_size, int) or ((kernel_size % 2 == 0) and not force_even) or (kernel_size <= 0):
-        raise TypeError("kernel_size must be an odd positive integer. " "Got {}".format(kernel_size))
-    window_1d = gaussian_discrete(kernel_size, sigma)
-    return window_1d
+        raise TypeError(
+            f"kernel_size must be an odd positive integer. Got {kernel_size}"
+        )
+    return gaussian_discrete(kernel_size, sigma)
 
 
 def get_gaussian_erf_kernel1d(kernel_size: int, sigma: float, force_even: bool = False) -> torch.Tensor:
@@ -424,9 +427,10 @@ def get_gaussian_erf_kernel1d(kernel_size: int, sigma: float, force_even: bool =
         tensor([0.1226, 0.2331, 0.2887, 0.2331, 0.1226])
     """
     if not isinstance(kernel_size, int) or ((kernel_size % 2 == 0) and not force_even) or (kernel_size <= 0):
-        raise TypeError("kernel_size must be an odd positive integer. " "Got {}".format(kernel_size))
-    window_1d = gaussian_discrete_erf(kernel_size, sigma)
-    return window_1d
+        raise TypeError(
+            f"kernel_size must be an odd positive integer. Got {kernel_size}"
+        )
+    return gaussian_discrete_erf(kernel_size, sigma)
 
 
 def get_gaussian_kernel2d(
@@ -686,5 +690,4 @@ def get_hanning_kernel2d(kernel_size: Tuple[int, int], device=torch.device('cpu'
         raise TypeError(f"ksize must be an tuple of positive integers > 2. Got {kernel_size}")
     ky: torch.Tensor = get_hanning_kernel1d(kernel_size[0], device, dtype)[None].T
     kx: torch.Tensor = get_hanning_kernel1d(kernel_size[1], device, dtype)[None]
-    kernel2d = ky @ kx
-    return kernel2d
+    return ky @ kx

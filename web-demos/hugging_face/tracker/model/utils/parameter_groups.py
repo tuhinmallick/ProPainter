@@ -18,7 +18,7 @@ def get_parameter_groups(model, stage_cfg, print_log=False):
     other_params = []
 
     embedding_names = ['summary_pos', 'query_init', 'query_emb', 'obj_pe']
-    embedding_names = [e + '.weight' for e in embedding_names]
+    embedding_names = [f'{e}.weight' for e in embedding_names]
 
     # inspired by detectron2
     memo = set()
@@ -51,22 +51,16 @@ def get_parameter_groups(model, stage_cfg, print_log=False):
         if not inserted:
             other_params.append(param)
 
-    parameter_groups = [
+    return [
         {
             'params': backbone_params,
             'lr': base_lr * backbone_lr_ratio,
-            'weight_decay': weight_decay
+            'weight_decay': weight_decay,
         },
         {
             'params': embed_params,
             'lr': base_lr,
-            'weight_decay': embed_weight_decay
+            'weight_decay': embed_weight_decay,
         },
-        {
-            'params': other_params,
-            'lr': base_lr,
-            'weight_decay': weight_decay
-        },
+        {'params': other_params, 'lr': base_lr, 'weight_decay': weight_decay},
     ]
-
-    return parameter_groups

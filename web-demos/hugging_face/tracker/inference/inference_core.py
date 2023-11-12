@@ -94,11 +94,7 @@ class InferenceCore:
             log.warn('Trying to add an empty object mask to memory!')
             return
 
-        if force_permanent:
-            as_permanent = 'all'
-        else:
-            as_permanent = 'first'
-
+        as_permanent = 'all' if force_permanent else 'first'
         self.memory.initialize_sensory_if_needed(key, self.object_manager.all_obj_ids)
         msk_value, sensory, obj_value, self.obj_logits = self.network.encode_mask(
             image,

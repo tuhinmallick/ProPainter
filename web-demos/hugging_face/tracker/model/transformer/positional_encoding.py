@@ -46,7 +46,7 @@ class PositionalEncoding(nn.Module):
         :return: positional encoding tensor that has the same shape as the input if the input is 4d
                  if the input is 5d, the output is broadcastable along the k-dimension
         """
-        if len(tensor.shape) != 4 and len(tensor.shape) != 5:
+        if len(tensor.shape) not in [4, 5]:
             raise RuntimeError(f'The input tensor has to be 4/5d, got {tensor.shape}!')
 
         if len(tensor.shape) == 5:

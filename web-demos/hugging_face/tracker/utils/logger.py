@@ -14,8 +14,7 @@ from tracker.utils.time_estimator import TimeEstimator
 
 
 def tensor_to_numpy(image):
-    image_np = (image.numpy() * 255).astype('uint8')
-    return image_np
+    return (image.numpy() * 255).astype('uint8')
 
 
 def detach_to_cpu(x):
@@ -30,16 +29,12 @@ class TensorboardLogger:
     def __init__(self, run_dir, py_logger: logging.Logger, *, enabled_tb):
         self.run_dir = run_dir
         self.py_log = py_logger
-        if enabled_tb:
-            self.tb_log = SummaryWriter(run_dir)
-        else:
-            self.tb_log = None
-
+        self.tb_log = SummaryWriter(run_dir) if enabled_tb else None
         # Get current git info for logging
         try:
             import git
             repo = git.Repo(".")
-            git_info = str(repo.active_branch) + ' ' + str(repo.head.commit.hexsha)
+            git_info = f'{str(repo.active_branch)} {str(repo.head.commit.hexsha)}'
         except (ImportError, RuntimeError):
             print('Failed to fetch git info. Defaulting to None')
             git_info = 'None'

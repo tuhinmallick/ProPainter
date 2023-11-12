@@ -23,13 +23,13 @@ class Integrator:
     def add_tensor(self, key: str, tensor: torch.Tensor):
         if key not in self.values:
             self.counts[key] = 1
-            if type(tensor) == float or type(tensor) == int:
+            if type(tensor) in [float, int]:
                 self.values[key] = tensor
             else:
                 self.values[key] = tensor.mean().item()
         else:
             self.counts[key] += 1
-            if type(tensor) == float or type(tensor) == int:
+            if type(tensor) in [float, int]:
                 self.values[key] += tensor
             else:
                 self.values[key] += tensor.mean().item()

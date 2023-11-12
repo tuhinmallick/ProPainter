@@ -177,7 +177,7 @@ class KeyValueMemoryStore:
             end = self.k[bucket_id].shape[-1] + 1
 
         p_size = self.perm_end_pt[bucket_id]
-        start = start + p_size
+        start += p_size
 
         k = self.k[bucket_id]
         s = self.s[bucket_id]
@@ -242,8 +242,7 @@ class KeyValueMemoryStore:
         if not self.save_usage:
             raise RuntimeError('I did not count usage!')
         else:
-            usage = self.use_cnt[bucket_id] / self.life_cnt[bucket_id]
-            return usage
+            return self.use_cnt[bucket_id] / self.life_cnt[bucket_id]
 
     def get_all_sliced(
         self, bucket_id: int, start: int, end: int
@@ -255,7 +254,7 @@ class KeyValueMemoryStore:
         assert end <= 0
 
         p_size = self.perm_end_pt[bucket_id]
-        start = start + p_size
+        start += p_size
 
         if end == 0:
             # negative 0 would not work as the end index!
@@ -307,10 +306,7 @@ class KeyValueMemoryStore:
         return self.v[obj_id].shape[-1]
 
     def size(self, bucket_id: int) -> int:
-        if bucket_id not in self.k:
-            return 0
-        else:
-            return self.k[bucket_id].shape[-1]
+        return 0 if bucket_id not in self.k else self.k[bucket_id].shape[-1]
 
     def perm_size(self, bucket_id: int) -> int:
         return self.perm_end_pt[bucket_id]

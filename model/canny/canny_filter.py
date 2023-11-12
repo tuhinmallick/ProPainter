@@ -77,14 +77,12 @@ def canny(
     if not isinstance(input, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(input)}")
 
-    if not len(input.shape) == 4:
+    if len(input.shape) != 4:
         raise ValueError(f"Invalid input shape, we expect BxCxHxW. Got: {input.shape}")
 
     if low_threshold > high_threshold:
         raise ValueError(
-            "Invalid input thresholds. low_threshold should be smaller than the high_threshold. Got: {}>{}".format(
-                low_threshold, high_threshold
-            )
+            f"Invalid input thresholds. low_threshold should be smaller than the high_threshold. Got: {low_threshold}>{high_threshold}"
         )
 
     if low_threshold < 0 and low_threshold > 1:

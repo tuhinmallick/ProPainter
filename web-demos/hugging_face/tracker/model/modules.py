@@ -27,8 +27,7 @@ class DecoderFeatureProcessor(nn.Module):
         ])
 
     def forward(self, multi_scale_features: Iterable[torch.Tensor]) -> List[torch.Tensor]:
-        outputs = [func(x) for x, func in zip(multi_scale_features, self.transforms)]
-        return outputs
+        return [func(x) for x, func in zip(multi_scale_features, self.transforms)]
 
 
 # @torch.jit.script
@@ -39,8 +38,7 @@ def _recurrent_update(h: torch.Tensor, values: torch.Tensor) -> torch.Tensor:
     forget_gate = torch.sigmoid(values[:, :, :dim])
     update_gate = torch.sigmoid(values[:, :, dim:dim * 2])
     new_value = torch.tanh(values[:, :, dim * 2:])
-    new_h = forget_gate * h * (1 - update_gate) + update_gate * new_value
-    return new_h
+    return forget_gate * h * (1 - update_gate) + update_gate * new_value
 
 
 class SensoryUpdater(nn.Module):

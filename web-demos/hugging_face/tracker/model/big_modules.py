@@ -141,19 +141,13 @@ class MaskEncoder(nn.Module):
             fast_path = True
             new_sensory = sensory
         else:
-            if deep_update:
-                new_sensory = torch.empty_like(sensory)
-            else:
-                new_sensory = sensory
+            new_sensory = torch.empty_like(sensory) if deep_update else sensory
             fast_path = False
 
         # chunk-by-chunk inference
         all_g = []
         for i in range(0, num_objects, chunk_size):
-            if fast_path:
-                g_chunk = g
-            else:
-                g_chunk = g[:, i:i + chunk_size]
+            g_chunk = g if fast_path else g[:, i:i + chunk_size]
             actual_chunk_size = g_chunk.shape[1]
             g_chunk = g_chunk.flatten(start_dim=0, end_dim=1)
 
@@ -267,19 +261,13 @@ class MaskDecoder(nn.Module):
             fast_path = True
             new_sensory = sensory
         else:
-            if update_sensory:
-                new_sensory = torch.empty_like(sensory)
-            else:
-                new_sensory = sensory
+            new_sensory = torch.empty_like(sensory) if update_sensory else sensory
             fast_path = False
 
         # chunk-by-chunk inference
         all_logits = []
         for i in range(0, num_objects, chunk_size):
-            if fast_path:
-                p16 = memory_readout
-            else:
-                p16 = memory_readout[:, i:i + chunk_size]
+            p16 = memory_readout if fast_path else memory_readout[:, i:i + chunk_size]
             actual_chunk_size = p16.shape[1]
 
             p8 = self.up_16_8(p16, f8)

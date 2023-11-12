@@ -182,10 +182,7 @@ class QueryTransformer(nn.Module):
         # returns a mask of shape (batch_size*num_objects*num_heads)*num_queries*(H*W)
         # where True means the attention is blocked
 
-        if selector is None:
-            prob = logits.sigmoid()
-        else:
-            prob = logits.sigmoid() * selector
+        prob = logits.sigmoid() if selector is None else logits.sigmoid() * selector
         logits = aggregate(prob, dim=1)
 
         is_foreground = (logits[:, 1:] >= logits.max(dim=1, keepdim=True)[0])

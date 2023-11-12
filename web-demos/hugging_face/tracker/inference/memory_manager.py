@@ -75,17 +75,13 @@ class MemoryManager:
             self.max_mem_frames = cfg.max_mem_frames - 1
 
     def _readout(self, affinity, v) -> torch.Tensor:
-        # affinity: bs*N*HW
-        # v: bs*C*N or bs*num_objects*C*N
-        # returns bs*C*HW or bs*num_objects*C*HW
         if len(v.shape) == 3:
             # single object
             return v @ affinity
-        else:
-            bs, num_objects, C, N = v.shape
-            v = v.view(bs, num_objects * C, N)
-            out = v @ affinity
-            return out.view(bs, num_objects, C, -1)
+        bs, num_objects, C, N = v.shape
+        v = v.view(bs, num_objects * C, N)
+        out = v @ affinity
+        return out.view(bs, num_objects, C, -1)
 
     def _get_mask_by_ids(self, mask: torch.Tensor, obj_ids: List[int]) -> torch.Tensor:
         # -1 because the mask does not contain the background channel

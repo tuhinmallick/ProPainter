@@ -22,10 +22,7 @@ def load_image(imfile):
 
 
 def load_image_list(image_files):
-    images = []
-    for imfile in sorted(image_files):
-        images.append(load_image(imfile))
-
+    images = [load_image(imfile) for imfile in sorted(image_files)]
     images = torch.stack(images, dim=0)
     images = images.to(DEVICE)
 

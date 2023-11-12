@@ -69,9 +69,7 @@ class BidirectionalPropagation(nn.Module):
         return [b, t, c, h, w]
         """
         b, t, c, h, w = x.shape
-        feats = {}
-        feats['spatial'] = [x[:, i, :, :, :] for i in range(0, t)]
-
+        feats = {'spatial': [x[:, i, :, :, :] for i in range(0, t)]}
         for module_name in ['backward_', 'forward_']:
 
             feats[module_name] = []
@@ -102,8 +100,8 @@ class BidirectionalPropagation(nn.Module):
 
                 # fuse current features
                 feat = [feat_current] + \
-                    [feats[k][idx] for k in feats if k not in ['spatial', module_name]] \
-                    + [feat_prop]
+                        [feats[k][idx] for k in feats if k not in ['spatial', module_name]] \
+                        + [feat_prop]
 
                 feat = torch.cat(feat, dim=1)
                 # embed current features
@@ -116,7 +114,7 @@ class BidirectionalPropagation(nn.Module):
                 feats[module_name] = feats[module_name][::-1]
 
         outputs = []
-        for i in range(0, t):
+        for _ in range(0, t):
             align_feats = [feats[k].pop(0) for k in feats if k != 'spatial']
             align_feats = torch.cat(align_feats, dim=1)
             outputs.append(self.fusion(align_feats))
@@ -162,11 +160,7 @@ class P3DBlock(nn.Module):
     def forward(self, feats):
         feat1 = self.conv1(feats)
         feat2 = self.conv2(feat1)
-        if self.use_residual:
-            output = feats + feat2
-        else:
-            output = feat2
-        return output
+        return feats + feat2 if self.use_residual else feat2
 
 
 class EdgeDetection(nn.Module):

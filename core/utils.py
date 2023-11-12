@@ -23,7 +23,8 @@ from torchvision import transforms
 
 def read_dirnames_under_root(root_dir):
     dirnames = [
-        name for i, name in enumerate(sorted(os.listdir(root_dir)))
+        name
+        for name in sorted(os.listdir(root_dir))
         if os.path.isdir(os.path.join(root_dir, name))
     ]
     print(f'Reading directories under {root_dir}, num: {len(dirnames)}')
@@ -39,12 +40,10 @@ class TrainZipReader(object):
     @staticmethod
     def build_file_dict(path):
         file_dict = TrainZipReader.file_dict
-        if path in file_dict:
-            return file_dict[path]
-        else:
+        if path not in file_dict:
             file_handle = zipfile.ZipFile(path, 'r')
             file_dict[path] = file_handle
-            return file_dict[path]
+        return file_dict[path]
 
     @staticmethod
     def imread(path, idx):
@@ -52,9 +51,7 @@ class TrainZipReader(object):
         filelist = zfile.namelist()
         filelist.sort()
         data = zfile.read(filelist[idx])
-        #
-        im = Image.open(io.BytesIO(data))
-        return im
+        return Image.open(io.BytesIO(data))
 
 
 class TestZipReader(object):
@@ -66,12 +63,10 @@ class TestZipReader(object):
     @staticmethod
     def build_file_dict(path):
         file_dict = TestZipReader.file_dict
-        if path in file_dict:
-            return file_dict[path]
-        else:
+        if path not in file_dict:
             file_handle = zipfile.ZipFile(path, 'r')
             file_dict[path] = file_handle
-            return file_dict[path]
+        return file_dict[path]
 
     @staticmethod
     def imread(path, idx):
@@ -100,15 +95,14 @@ class GroupRandomHorizontalFlowFlip(object):
     """
     def __call__(self, img_group, flowF_group, flowB_group):
         v = random.random()
-        if v < 0.5:
-            ret_img = [
-                img.transpose(Image.FLIP_LEFT_RIGHT) for img in img_group
-            ]
-            ret_flowF = [ff[:, ::-1] * [-1.0, 1.0] for ff in flowF_group]
-            ret_flowB = [fb[:, ::-1] * [-1.0, 1.0] for fb in flowB_group]
-            return ret_img, ret_flowF, ret_flowB
-        else:
+        if v >= 0.5:
             return img_group, flowF_group, flowB_group
+        ret_img = [
+            img.transpose(Image.FLIP_LEFT_RIGHT) for img in img_group
+        ]
+        ret_flowF = [ff[:, ::-1] * [-1.0, 1.0] for ff in flowF_group]
+        ret_flowB = [fb[:, ::-1] * [-1.0, 1.0] for fb in flowB_group]
+        return ret_img, ret_flowF, ret_flowB
 
 
 class GroupRandomHorizontalFlip(object):
@@ -116,15 +110,14 @@ class GroupRandomHorizontalFlip(object):
     """
     def __call__(self, img_group, is_flow=False):
         v = random.random()
-        if v < 0.5:
-            ret = [img.transpose(Image.FLIP_LEFT_RIGHT) for img in img_group]
-            if is_flow:
-                for i in range(0, len(ret), 2):
-                    # invert flow pixel values when flipping
-                    ret[i] = ImageOps.invert(ret[i])
-            return ret
-        else:
+        if v >= 0.5:
             return img_group
+        ret = [img.transpose(Image.FLIP_LEFT_RIGHT) for img in img_group]
+        if is_flow:
+            for i in range(0, len(ret), 2):
+                # invert flow pixel values when flipping
+                ret[i] = ImageOps.invert(ret[i])
+        return ret
 
 
 class Stack(object):
@@ -302,8 +295,7 @@ def get_random_shape(edge_num=9, ratio=0.7, width=432, height=240):
     corrdinates = np.where(data > 0)
     xmin, xmax, ymin, ymax = np.min(corrdinates[0]), np.max(
         corrdinates[0]), np.min(corrdinates[1]), np.max(corrdinates[1])
-    region = Image.fromarray(data).crop((ymin, xmin, ymax, xmax))
-    return region
+    return Image.fromarray(data).crop((ymin, xmin, ymax, xmax))
 
 
 def random_accelerate(velocity, maxAcceleration, dist='uniform'):

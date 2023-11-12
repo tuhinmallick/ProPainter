@@ -111,8 +111,7 @@ def window_partition(x, window_size, n_head):
     """
     B, T, H, W, C = x.shape
     x = x.view(B, T, H // window_size[0], window_size[0], W // window_size[1], window_size[1], n_head, C//n_head)
-    windows = x.permute(0, 2, 4, 6, 1, 3, 5, 7).contiguous()
-    return windows
+    return x.permute(0, 2, 4, 6, 1, 3, 5, 7).contiguous()
 
 class SparseWindowAttention(nn.Module):
     def __init__(self, dim, n_head, window_size, pool_size=(4,4), qkv_bias=True, attn_drop=0., proj_drop=0., 
@@ -317,11 +316,12 @@ class TemporalSparseTransformer(nn.Module):
 class TemporalSparseTransformerBlock(nn.Module):
     def __init__(self, dim, n_head, window_size, pool_size, depths, t2t_params=None):
         super().__init__()
-        blocks = []
-        for i in range(depths):
-             blocks.append(
-                TemporalSparseTransformer(dim, n_head, window_size, pool_size, t2t_params=t2t_params)
-             )
+        blocks = [
+            TemporalSparseTransformer(
+                dim, n_head, window_size, pool_size, t2t_params=t2t_params
+            )
+            for _ in range(depths)
+        ]
         self.transformer = nn.Sequential(*blocks)
         self.depths = depths
 

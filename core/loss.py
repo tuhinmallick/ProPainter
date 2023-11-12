@@ -72,26 +72,33 @@ class PerceptualLoss(nn.Module):
 
         # calculate perceptual loss
         if self.perceptual_weight > 0:
-            percep_loss = 0
-            for k in x_features.keys():
-                if self.criterion_type == 'fro':
-                    percep_loss += torch.norm(x_features[k] - gt_features[k], p='fro') * self.layer_weights[k]
-                else:
-                    percep_loss += self.criterion(x_features[k], gt_features[k]) * self.layer_weights[k]
+            percep_loss = sum(
+                torch.norm(x_features[k] - gt_features[k], p='fro')
+                * self.layer_weights[k]
+                if self.criterion_type == 'fro'
+                else self.criterion(x_features[k], gt_features[k])
+                * self.layer_weights[k]
+                for k in x_features.keys()
+            )
             percep_loss *= self.perceptual_weight
         else:
             percep_loss = None
 
         # calculate style loss
         if self.style_weight > 0:
-            style_loss = 0
-            for k in x_features.keys():
-                if self.criterion_type == 'fro':
-                    style_loss += torch.norm(
-                        self._gram_mat(x_features[k]) - self._gram_mat(gt_features[k]), p='fro') * self.layer_weights[k]
-                else:
-                    style_loss += self.criterion(self._gram_mat(x_features[k]), self._gram_mat(
-                        gt_features[k])) * self.layer_weights[k]
+            style_loss = sum(
+                torch.norm(
+                    self._gram_mat(x_features[k]) - self._gram_mat(gt_features[k]),
+                    p='fro',
+                )
+                * self.layer_weights[k]
+                if self.criterion_type == 'fro'
+                else self.criterion(
+                    self._gram_mat(x_features[k]), self._gram_mat(gt_features[k])
+                )
+                * self.layer_weights[k]
+                for k in x_features.keys()
+            )
             style_loss *= self.style_weight
         else:
             style_loss = None
@@ -110,8 +117,7 @@ class PerceptualLoss(nn.Module):
         n, c, h, w = x.size()
         features = x.view(n, c, w * h)
         features_t = features.transpose(1, 2)
-        gram = features.bmm(features_t) / (c * h * w)
-        return gram
+        return features.bmm(features_t) / (c * h * w)
 
 class LPIPSLoss(nn.Module):
     def __init__(self, 
@@ -167,14 +173,12 @@ class AdversarialLoss(nn.Module):
 
     def __call__(self, outputs, is_real, is_disc=None):
         if self.type == 'hinge':
-            if is_disc:
-                if is_real:
-                    outputs = -outputs
-                return self.criterion(1 + outputs).mean()
-            else:
+            if not is_disc:
                 return (-outputs).mean()
+            if is_real:
+                outputs = -outputs
+            return self.criterion(1 + outputs).mean()
         else:
             labels = (self.real_label
                       if is_real else self.fake_label).expand_as(outputs)
-            loss = self.criterion(outputs, labels)
-            return loss
+            return self.criterion(outputs, labels)

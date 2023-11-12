@@ -56,10 +56,7 @@ class CrossAttention(nn.Module):
                                                 nhead,
                                                 dropout=dropout,
                                                 batch_first=batch_first)
-        if norm:
-            self.norm = nn.LayerNorm(dim)
-        else:
-            self.norm = nn.Identity()
+        self.norm = nn.LayerNorm(dim) if norm else nn.Identity()
         self.dropout = nn.Dropout(dropout)
         self.add_pe_to_qkv = add_pe_to_qkv
         self.residual = residual
@@ -73,11 +70,7 @@ class CrossAttention(nn.Module):
                 *,
                 need_weights: bool = False) -> (torch.Tensor, torch.Tensor):
         x = self.norm(x)
-        if self.add_pe_to_qkv[0]:
-            q = x + x_pe
-        else:
-            q = x
-
+        q = x + x_pe if self.add_pe_to_qkv[0] else x
         if any(self.add_pe_to_qkv[1:]):
             mem_with_pe = mem + mem_pe
             k = mem_with_pe if self.add_pe_to_qkv[1] else mem
@@ -153,9 +146,9 @@ class OutputFFN(nn.Module):
 
 
 def _get_activation_fn(activation: str) -> Callable[[Tensor], Tensor]:
-    if activation == "relu":
-        return F.relu
-    elif activation == "gelu":
+    if activation == "gelu":
         return F.gelu
 
-    raise RuntimeError("activation should be relu/gelu, not {}".format(activation))
+    elif activation == "relu":
+        return F.relu
+    raise RuntimeError(f"activation should be relu/gelu, not {activation}")
