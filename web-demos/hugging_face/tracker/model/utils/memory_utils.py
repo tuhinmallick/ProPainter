@@ -71,18 +71,14 @@ def do_softmax(
         affinity = x_exp / x_exp_sum
         indices = None
 
-    if return_usage:
-        return affinity, affinity.sum(dim=2)
-
-    return affinity
+    return (affinity, affinity.sum(dim=2)) if return_usage else affinity
 
 
 def get_affinity(mk: torch.Tensor, ms: torch.Tensor, qk: torch.Tensor,
                  qe: torch.Tensor) -> torch.Tensor:
     # shorthand used in training with no top-k
     similarity = get_similarity(mk, ms, qk, qe)
-    affinity = do_softmax(similarity)
-    return affinity
+    return do_softmax(similarity)
 
 
 def readout(affinity: torch.Tensor, mv: torch.Tensor) -> torch.Tensor:

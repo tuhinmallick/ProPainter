@@ -90,28 +90,26 @@ def _make_colorwheel() -> torch.Tensor:
 
     ncols = RY + YG + GC + CB + BM + MR
     colorwheel = torch.zeros((ncols, 3))
-    col = 0
-
     # RY
     colorwheel[0:RY, 0] = 255
     colorwheel[0:RY, 1] = torch.floor(255. * torch.arange(0., RY) / RY)
-    col = col + RY
+    col = 0 + RY
     # YG
     colorwheel[col : col + YG, 0] = 255 - torch.floor(255. * torch.arange(0., YG) / YG)
     colorwheel[col : col + YG, 1] = 255
-    col = col + YG
+    col += YG
     # GC
     colorwheel[col : col + GC, 1] = 255
     colorwheel[col : col + GC, 2] = torch.floor(255. * torch.arange(0., GC) / GC)
-    col = col + GC
+    col += GC
     # CB
     colorwheel[col : col + CB, 1] = 255 - torch.floor(255. * torch.arange(CB) / CB)
     colorwheel[col : col + CB, 2] = 255
-    col = col + CB
+    col += CB
     # BM
     colorwheel[col : col + BM, 2] = 255
     colorwheel[col : col + BM, 0] = torch.floor(255. * torch.arange(0., BM) / BM)
-    col = col + BM
+    col += BM
     # MR
     colorwheel[col : col + MR, 2] = 255 - torch.floor(255. * torch.arange(MR) / MR)
     colorwheel[col : col + MR, 0] = 255

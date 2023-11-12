@@ -83,7 +83,4 @@ class ObjectSummarizer(nn.Module):
 
         summaries = torch.cat([sums, area], dim=-1)
 
-        if need_weights:
-            return summaries, logits
-        else:
-            return summaries, None
+        return (summaries, logits) if need_weights else (summaries, None)

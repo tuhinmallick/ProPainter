@@ -156,7 +156,7 @@ class Trainer:
                 for i in glob.glob(os.path.join(model_path, '*.pth'))
             ]
             ckpts.sort()
-            latest_epoch = ckpts[-1][4:] if len(ckpts) > 0 else None
+            latest_epoch = ckpts[-1][4:] if ckpts else None
 
         if latest_epoch is not None:
             gen_path = os.path.join(model_path, f'gen_{int(latest_epoch):06d}.pth')
@@ -175,39 +175,39 @@ class Trainer:
             self.epoch = data_opt['epoch']
             self.iteration = data_opt['iteration']
 
-        else:
-            if self.config['global_rank'] == 0:
-                print('Warnning: There is no trained model found.'
-                      'An initialized model will be used.')
+        elif self.config['global_rank'] == 0:
+            print('Warnning: There is no trained model found.'
+                  'An initialized model will be used.')
 
     def save(self, it):
         """Save parameters every eval_epoch"""
-        if self.config['global_rank'] == 0:
-            # configure path
-            gen_path = os.path.join(self.config['save_dir'],
-                                    f'gen_{it:06d}.pth')
-            opt_path = os.path.join(self.config['save_dir'],
-                                    f'opt_{it:06d}.pth')
-            print(f'\nsaving model to {gen_path} ...')
+        if self.config['global_rank'] != 0:
+            return
+        # configure path
+        gen_path = os.path.join(self.config['save_dir'],
+                                f'gen_{it:06d}.pth')
+        opt_path = os.path.join(self.config['save_dir'],
+                                f'opt_{it:06d}.pth')
+        print(f'\nsaving model to {gen_path} ...')
 
             # remove .module for saving
-            if isinstance(self.netG, torch.nn.DataParallel) or isinstance(self.netG, DDP):
-                netG = self.netG.module
-            else:
-                netG = self.netG
+        if isinstance(self.netG, (torch.nn.DataParallel, DDP)):
+            netG = self.netG.module
+        else:
+            netG = self.netG
 
-            # save checkpoints
-            torch.save(netG.state_dict(), gen_path)
-            torch.save(
-                {
-                    'epoch': self.epoch,
-                    'iteration': self.iteration,
-                    'optimG': self.optimG.state_dict(),
-                    'scheG': self.scheG.state_dict()
-                }, opt_path)
+        # save checkpoints
+        torch.save(netG.state_dict(), gen_path)
+        torch.save(
+            {
+                'epoch': self.epoch,
+                'iteration': self.iteration,
+                'optimG': self.optimG.state_dict(),
+                'scheG': self.scheG.state_dict()
+            }, opt_path)
 
-            latest_path = os.path.join(self.config['save_dir'], 'latest.ckpt')
-            os.system(f"echo {it:06d} > {latest_path}")
+        latest_path = os.path.join(self.config['save_dir'], 'latest.ckpt')
+        os.system(f"echo {it:06d} > {latest_path}")
 
     def train(self):
         """training entry"""
@@ -356,7 +356,7 @@ class Trainer:
 
                 edge_results = torch.cat([gt_edges_backward_cpu[t], masked_edges_backward_cpu, pred_edges_backward_cpu[t]], 1)
                 self.gen_writer.add_image('img/edge-b:gt-pred', edge_results, self.iteration)
-                
+
             # console logs
             if self.config['global_rank'] == 0:
                 pbar.update(1)
@@ -372,7 +372,7 @@ class Trainer:
 
             # saving models
             if self.iteration % self.train_args['save_freq'] == 0:
-                self.save(int(self.iteration))
+                self.save(self.iteration)
 
             if self.iteration > self.train_args['iterations']:
                 break

@@ -34,9 +34,9 @@ def resize_frames(frames, size=None):
 	else:
 		out_size = frames[0].size
 		process_size = (out_size[0]-out_size[0]%8, out_size[1]-out_size[1]%8)
-		if not out_size == process_size:
+		if out_size != process_size:
 			frames = [f.resize(process_size) for f in frames]
-		
+
 	return frames, process_size, out_size
 
 
@@ -76,8 +76,8 @@ def extrapolation(video_ori, scale):
 	# Defines new FOV.
 	imgH_extr = int(scale[0] * imgH)
 	imgW_extr = int(scale[1] * imgW)
-	imgH_extr = imgH_extr - imgH_extr % 8
-	imgW_extr = imgW_extr - imgW_extr % 8
+	imgH_extr -= imgH_extr % 8
+	imgW_extr -= imgW_extr % 8
 	H_start = int((imgH_extr - imgH) / 2)
 	W_start = int((imgW_extr - imgW) / 2)
 
@@ -88,33 +88,27 @@ def extrapolation(video_ori, scale):
 		frame[H_start: H_start + imgH, W_start: W_start + imgW, :] = v
 		frames.append(Image.fromarray(frame))
 
-	# Generates the mask for missing region.
-	masks_dilated = []
-	flow_masks = []
-	
 	dilate_h = 4 if H_start > 10 else 0
 	dilate_w = 4 if W_start > 10 else 0
 	mask = np.ones(((imgH_extr, imgW_extr)), dtype=np.uint8)
-	
+
 	mask[H_start+dilate_h: H_start+imgH-dilate_h, 
 		 W_start+dilate_w: W_start+imgW-dilate_w] = 0
-	flow_masks.append(Image.fromarray(mask * 255))
-
+	flow_masks = [Image.fromarray(mask * 255)]
 	mask[H_start: H_start+imgH, W_start: W_start+imgW] = 0
-	masks_dilated.append(Image.fromarray(mask * 255))
-  
-	flow_masks = flow_masks * nFrame
-	masks_dilated = masks_dilated * nFrame
-	
+	masks_dilated = [Image.fromarray(mask * 255)]
+	flow_masks *= nFrame
+	masks_dilated *= nFrame
+
 	return frames, flow_masks, masks_dilated, (imgW_extr, imgH_extr)
 
 
 def get_ref_index(mid_neighbor_id, neighbor_ids, length, ref_stride=10, ref_num=-1):
 	ref_index = []
 	if ref_num == -1:
-		for i in range(0, length, ref_stride):
-			if i not in neighbor_ids:
-				ref_index.append(i)
+		ref_index.extend(
+			i for i in range(0, length, ref_stride) if i not in neighbor_ids
+		)
 	else:
 		start_idx = max(0, mid_neighbor_id - ref_stride * (ref_num // 2))
 		end_idx = min(length, mid_neighbor_id + ref_stride * (ref_num // 2))
@@ -127,37 +121,34 @@ def get_ref_index(mid_neighbor_id, neighbor_ids, length, ref_stride=10, ref_num=
 
 
 def read_mask_demo(masks, length, size, flow_mask_dilates=8, mask_dilates=5):
-		masks_img = []
-		masks_dilated = []
-		flow_masks = []
-			
-		for mp in masks:
-			masks_img.append(Image.fromarray(mp.astype('uint8')))
-			
-		for mask_img in masks_img:
-			if size is not None:
-				mask_img = mask_img.resize(size, Image.NEAREST)
-			mask_img = np.array(mask_img.convert('L'))
+	masks_dilated = []
+	flow_masks = []
 
-			# Dilate 8 pixel so that all known pixel is trustworthy
-			if flow_mask_dilates > 0:
-				flow_mask_img = scipy.ndimage.binary_dilation(mask_img, iterations=flow_mask_dilates).astype(np.uint8)
-			else:
-				flow_mask_img = binary_mask(mask_img).astype(np.uint8)
-			
-			flow_masks.append(Image.fromarray(flow_mask_img * 255))
-			
-			if mask_dilates > 0:
-				mask_img = scipy.ndimage.binary_dilation(mask_img, iterations=mask_dilates).astype(np.uint8)
-			else:
-				mask_img = binary_mask(mask_img).astype(np.uint8)
-			masks_dilated.append(Image.fromarray(mask_img * 255))
-		
-		if len(masks_img) == 1:
-			flow_masks = flow_masks * length
-			masks_dilated = masks_dilated * length
+	masks_img = [Image.fromarray(mp.astype('uint8')) for mp in masks]
+	for mask_img in masks_img:
+		if size is not None:
+			mask_img = mask_img.resize(size, Image.NEAREST)
+		mask_img = np.array(mask_img.convert('L'))
 
-		return flow_masks, masks_dilated
+		# Dilate 8 pixel so that all known pixel is trustworthy
+		if flow_mask_dilates > 0:
+			flow_mask_img = scipy.ndimage.binary_dilation(mask_img, iterations=flow_mask_dilates).astype(np.uint8)
+		else:
+			flow_mask_img = binary_mask(mask_img).astype(np.uint8)
+
+		flow_masks.append(Image.fromarray(flow_mask_img * 255))
+
+		if mask_dilates > 0:
+			mask_img = scipy.ndimage.binary_dilation(mask_img, iterations=mask_dilates).astype(np.uint8)
+		else:
+			mask_img = binary_mask(mask_img).astype(np.uint8)
+		masks_dilated.append(Image.fromarray(mask_img * 255))
+
+	if len(masks_img) == 1:
+		flow_masks *= length
+		masks_dilated *= length
+
+	return flow_masks, masks_dilated
 
 
 class ProInpainter:
@@ -196,9 +187,10 @@ class ProInpainter:
 		inpainted_frames: numpy array, T, H, W, 3
 		"""
 		
-		frames = []
-		for i in range(len(npframes)):
-			frames.append(Image.fromarray(npframes[i].astype('uint8'), mode="RGB"))
+		frames = [
+			Image.fromarray(npframes[i].astype('uint8'), mode="RGB")
+			for i in range(len(npframes))
+		]
 		del npframes
 
 		size = frames[0].size
@@ -211,11 +203,11 @@ class ProInpainter:
 		w, h = size
 
 		frames_inp = [np.array(f).astype(np.uint8) for f in frames]
-		frames = to_tensors()(frames).unsqueeze(0) * 2 - 1    
+		frames = to_tensors()(frames).unsqueeze(0) * 2 - 1
 		flow_masks = to_tensors()(flow_masks).unsqueeze(0)
 		masks_dilated = to_tensors()(masks_dilated).unsqueeze(0)
 		frames, flow_masks, masks_dilated = frames.to(self.device), flow_masks.to(self.device), masks_dilated.to(self.device)
-		
+
 		##############################################
 		# ProPainter inference
 		##############################################
@@ -230,7 +222,7 @@ class ProInpainter:
 				short_clip_len = 4
 			else:
 				short_clip_len = 2
-			
+
 			# use fp32 for RAFT
 			if frames.size(1) > short_clip_len:
 				gt_flows_f_list, gt_flows_b_list = [], []
@@ -240,11 +232,11 @@ class ProInpainter:
 						flows_f, flows_b = self.fix_raft(frames[:,f:end_f], iters=raft_iter)
 					else:
 						flows_f, flows_b = self.fix_raft(frames[:,f-1:end_f], iters=raft_iter)
-					
+
 					gt_flows_f_list.append(flows_f)
 					gt_flows_b_list.append(flows_b)
 					torch.cuda.empty_cache()
-					
+
 				gt_flows_f = torch.cat(gt_flows_f_list, dim=1)
 				gt_flows_b = torch.cat(gt_flows_b_list, dim=1)
 				gt_flows_bi = (gt_flows_f, gt_flows_b)
@@ -277,7 +269,7 @@ class ProInpainter:
 					pred_flows_f.append(pred_flows_bi_sub[0][:, pad_len_s:e_f-s_f-pad_len_e])
 					pred_flows_b.append(pred_flows_bi_sub[1][:, pad_len_s:e_f-s_f-pad_len_e])
 					torch.cuda.empty_cache()
-					
+
 				pred_flows_f = torch.cat(pred_flows_f, dim=1)
 				pred_flows_b = torch.cat(pred_flows_b, dim=1)
 				pred_flows_bi = (pred_flows_f, pred_flows_b)
@@ -285,7 +277,7 @@ class ProInpainter:
 				pred_flows_bi, _ = self.fix_flow_complete.forward_bidirect_flow(gt_flows_bi, flow_masks)
 				pred_flows_bi = self.fix_flow_complete.combine_flow(gt_flows_bi, pred_flows_bi, flow_masks)
 				torch.cuda.empty_cache()
-				
+
 			# ---- image propagation ----
 			masked_frames = frames * (1 - masks_dilated)
 			subvideo_length_img_prop = min(100, subvideo_length) # ensure a minimum of 100 frames for image propagation
@@ -305,13 +297,13 @@ class ProInpainter:
 																		masks_dilated[:, s_f:e_f], 
 																		'nearest')
 					updated_frames_sub = frames[:, s_f:e_f] * (1 - masks_dilated[:, s_f:e_f]) + \
-										prop_imgs_sub.view(b, t, 3, h, w) * masks_dilated[:, s_f:e_f]
+											prop_imgs_sub.view(b, t, 3, h, w) * masks_dilated[:, s_f:e_f]
 					updated_masks_sub = updated_local_masks_sub.view(b, t, 1, h, w)
-					
+
 					updated_frames.append(updated_frames_sub[:, pad_len_s:e_f-s_f-pad_len_e])
 					updated_masks.append(updated_masks_sub[:, pad_len_s:e_f-s_f-pad_len_e])
 					torch.cuda.empty_cache()
-					
+
 				updated_frames = torch.cat(updated_frames, dim=1)
 				updated_masks = torch.cat(updated_masks, dim=1)
 			else:
@@ -320,7 +312,7 @@ class ProInpainter:
 				updated_frames = frames * (1 - masks_dilated) + prop_imgs.view(b, t, 3, h, w) * masks_dilated
 				updated_masks = updated_local_masks.view(b, t, 1, h, w)
 				torch.cuda.empty_cache()
-	
+
 		ori_frames = frames_inp
 		comp_frames = [None] * video_length
 
@@ -329,26 +321,28 @@ class ProInpainter:
 			ref_num = subvideo_length // ref_stride
 		else:
 			ref_num = -1
-		
+
 		# ---- feature propagation + transformer ----
 		for f in tqdm(range(0, video_length, neighbor_stride)):
-			neighbor_ids = [
-				i for i in range(max(0, f - neighbor_stride),
-									min(video_length, f + neighbor_stride + 1))
-			]
+			neighbor_ids = list(
+				range(
+					max(0, f - neighbor_stride),
+					min(video_length, f + neighbor_stride + 1),
+				)
+			)
 			ref_ids = get_ref_index(f, neighbor_ids, video_length, ref_stride, ref_num)
 			selected_imgs = updated_frames[:, neighbor_ids + ref_ids, :, :, :]
 			selected_masks = masks_dilated[:, neighbor_ids + ref_ids, :, :, :]
 			selected_update_masks = updated_masks[:, neighbor_ids + ref_ids, :, :, :]
 			selected_pred_flows_bi = (pred_flows_bi[0][:, neighbor_ids[:-1], :, :, :], pred_flows_bi[1][:, neighbor_ids[:-1], :, :, :])
-			
+
 			with torch.no_grad():
 				# 1.0 indicates mask
 				l_t = len(neighbor_ids)
-				
+
 				# pred_img = selected_imgs # results of image propagation
 				pred_img = self.model(selected_imgs, selected_pred_flows_bi, selected_masks, selected_update_masks, l_t)
-				
+
 				pred_img = pred_img.view(-1, 3, h, w)
 
 				pred_img = (pred_img + 1) / 2
@@ -358,14 +352,14 @@ class ProInpainter:
 				for i in range(len(neighbor_ids)):
 					idx = neighbor_ids[i]
 					img = np.array(pred_img[i]).astype(np.uint8) * binary_masks[i] \
-						+ ori_frames[idx] * (1 - binary_masks[i])
+							+ ori_frames[idx] * (1 - binary_masks[i])
 					if comp_frames[idx] is None:
 						comp_frames[idx] = img
 					else: 
 						comp_frames[idx] = comp_frames[idx].astype(np.float32) * 0.5 + img.astype(np.float32) * 0.5
-						
+
 					comp_frames[idx] = comp_frames[idx].astype(np.uint8)
-			
+
 			torch.cuda.empty_cache()
 
 		# need to return numpy array, T, H, W, 3

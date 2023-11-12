@@ -22,16 +22,13 @@ class TrackingAnything():
         logits = []
         painted_images = []
         for i in tqdm(range(len(images)), desc="Tracking image"):
-            if i==0:           
+            if i==0:   
                 mask, logit, painted_image = self.cutie.track(images[i], template_mask)
-                masks.append(mask)
-                logits.append(logit)
-                painted_images.append(painted_image)
             else:
                 mask, logit, painted_image = self.cutie.track(images[i])
-                masks.append(mask)
-                logits.append(logit)
-                painted_images.append(painted_image)
+            painted_images.append(painted_image)
+            logits.append(logit)
+            masks.append(mask)
         return masks, logits, painted_images
         
         

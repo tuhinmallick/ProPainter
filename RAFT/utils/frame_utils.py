@@ -18,7 +18,7 @@ def readFlow(fn):
     # print 'fn = %s'%(fn)
     with open(fn, 'rb') as f:
         magic = np.fromfile(f, np.float32, count=1)
-        if 202021.25 != magic:
+        if magic != 202021.25:
             print('Magic number incorrect. Invalid .flo file')
             return None
         else:
@@ -47,8 +47,7 @@ def readPFM(file):
     else:
         raise Exception('Not a PFM file.')
 
-    dim_match = re.match(rb'^(\d+)\s(\d+)\s$', file.readline())
-    if dim_match:
+    if dim_match := re.match(rb'^(\d+)\s(\d+)\s$', file.readline()):
         width, height = map(int, dim_match.groups())
     else:
         raise Exception('Malformed PFM header.')
@@ -60,7 +59,7 @@ def readPFM(file):
     else:
         endian = '>' # big-endian
 
-    data = np.fromfile(file, endian + 'f')
+    data = np.fromfile(file, f'{endian}f')
     shape = (height, width, 3) if color else (height, width)
 
     data = np.reshape(data, shape)
@@ -86,17 +85,16 @@ def writeFlow(filename,uv,v=None):
 
     assert(u.shape == v.shape)
     height,width = u.shape
-    f = open(filename,'wb')
-    # write the header
-    f.write(TAG_CHAR)
-    np.array(width).astype(np.int32).tofile(f)
-    np.array(height).astype(np.int32).tofile(f)
-    # arrange into matrix form
-    tmp = np.zeros((height, width*nBands))
-    tmp[:,np.arange(width)*2] = u
-    tmp[:,np.arange(width)*2 + 1] = v
-    tmp.astype(np.float32).tofile(f)
-    f.close()
+    with open(filename,'wb') as f:
+        # write the header
+        f.write(TAG_CHAR)
+        np.array(width).astype(np.int32).tofile(f)
+        np.array(height).astype(np.int32).tofile(f)
+        # arrange into matrix form
+        tmp = np.zeros((height, width*nBands))
+        tmp[:,np.arange(width)*2] = u
+        tmp[:,np.arange(width)*2 + 1] = v
+        tmp.astype(np.float32).tofile(f)
 
 
 def readFlowKITTI(filename):
@@ -122,16 +120,13 @@ def writeFlowKITTI(filename, uv):
 
 def read_gen(file_name, pil=False):
     ext = splitext(file_name)[-1]
-    if ext == '.png' or ext == '.jpeg' or ext == '.ppm' or ext == '.jpg':
+    if ext in ['.png', '.jpeg', '.ppm', '.jpg']:
         return Image.open(file_name)
-    elif ext == '.bin' or ext == '.raw':
+    elif ext in ['.bin', '.raw']:
         return np.load(file_name)
     elif ext == '.flo':
         return readFlow(file_name).astype(np.float32)
     elif ext == '.pfm':
         flow = readPFM(file_name).astype(np.float32)
-        if len(flow.shape) == 2:
-            return flow
-        else:
-            return flow[:, :, :-1]
+        return flow if len(flow.shape) == 2 else flow[:, :, :-1]
     return []

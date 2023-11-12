@@ -26,9 +26,7 @@ def fbConsistencyCheck(flow_fw, flow_bw, alpha1=0.01, alpha2=0.5):
     mag_sq_fw = length_sq(flow_fw) + length_sq(flow_bw_warped)  # |wf| + |wb(wf(x))|
     occ_thresh_fw = alpha1 * mag_sq_fw + alpha2
 
-    # fb_valid_fw = (length_sq(flow_diff_fw) < occ_thresh_fw).float()
-    fb_valid_fw = (length_sq(flow_diff_fw) < occ_thresh_fw).to(flow_fw)
-    return fb_valid_fw
+    return (length_sq(flow_diff_fw) < occ_thresh_fw).to(flow_fw)
         
         
 class DeformableAlignment(ModulatedDeformConv2d):
@@ -79,7 +77,7 @@ class BidirectionalPropagation(nn.Module):
         self.learnable = learnable
 
         if self.learnable:
-            for i, module in enumerate(self.prop_list):
+            for module in self.prop_list:
                 self.deform_align[module] = DeformableAlignment(
                     channel, channel, 3, padding=1, deform_groups=16)
 
@@ -122,14 +120,13 @@ class BidirectionalPropagation(nn.Module):
             feats[module_name] = []
             masks[module_name] = []
 
+            frame_idx = range(0, t)
             if 'backward' in module_name:
-                frame_idx = range(0, t)
                 frame_idx = frame_idx[::-1]
                 flow_idx = frame_idx
                 flows_for_prop = flows_forward
                 flows_for_check = flows_backward
             else:
-                frame_idx = range(0, t)
                 flow_idx = range(-1, t - 1)
                 flows_for_prop = flows_backward
                 flows_for_check = flows_forward
@@ -159,7 +156,7 @@ class BidirectionalPropagation(nn.Module):
                         feat_prop = union_vaild_mask * feat_warped + (1-union_vaild_mask) * feat_current
                         # update mask
                         mask_prop = self.binary_mask(mask_current*(1-(flow_vaild_mask*(1-mask_prop_valid))))
-                
+
                 # refine
                 if self.learnable:
                     feat = torch.cat([feat_current, feat_prop, mask_current], dim=1)
@@ -187,7 +184,7 @@ class BidirectionalPropagation(nn.Module):
             outputs = outputs_f
 
         return outputs_b.view(b, -1, c, h, w), outputs_f.view(b, -1, c, h, w), \
-               outputs.view(b, -1, c, h, w), masks_f
+                   outputs.view(b, -1, c, h, w), masks_f
 
 
 class Encoder(nn.Module):
@@ -447,8 +444,7 @@ class Discriminator(BaseNetwork):
         feat = self.conv(xs_t)
         if self.use_sigmoid:
             feat = torch.sigmoid(feat)
-        out = torch.transpose(feat, 1, 2)  # B, T, C, H, W
-        return out
+        return torch.transpose(feat, 1, 2)
 
 
 class Discriminator_2D(BaseNetwork):
@@ -523,10 +519,7 @@ class Discriminator_2D(BaseNetwork):
         feat = self.conv(xs_t)
         if self.use_sigmoid:
             feat = torch.sigmoid(feat)
-        out = torch.transpose(feat, 1, 2)  # B, T, C, H, W
-        return out
+        return torch.transpose(feat, 1, 2)
 
 def spectral_norm(module, mode=True):
-    if mode:
-        return _spectral_norm(module)
-    return module
+    return _spectral_norm(module) if mode else module

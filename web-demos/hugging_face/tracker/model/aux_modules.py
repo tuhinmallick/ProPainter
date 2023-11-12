@@ -22,8 +22,7 @@ class LinearPredictor(nn.Module):
         x = self.projection(x)
 
         pix_feat = pix_feat.unsqueeze(1).expand(-1, num_objects, -1, -1, -1)
-        logits = (pix_feat * x[:, :, :-1]).sum(dim=2) + x[:, :, -1]
-        return logits
+        return (pix_feat * x[:, :, :-1]).sum(dim=2) + x[:, :, -1]
 
 
 class DirectPredictor(nn.Module):
@@ -32,9 +31,7 @@ class DirectPredictor(nn.Module):
         self.projection = GConv2d(x_dim, 1, kernel_size=1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x: B*num_objects*x_dim*H*W
-        logits = self.projection(x).squeeze(2)
-        return logits
+        return self.projection(x).squeeze(2)
 
 
 class AuxComputer(nn.Module):
@@ -44,10 +41,10 @@ class AuxComputer(nn.Module):
         use_sensory_aux = cfg.model.aux_loss.sensory.enabled
         self.use_query_aux = cfg.model.aux_loss.query.enabled
 
-        sensory_dim = cfg.model.sensory_dim
-        embed_dim = cfg.model.embed_dim
-
         if use_sensory_aux:
+            sensory_dim = cfg.model.sensory_dim
+            embed_dim = cfg.model.embed_dim
+
             self.sensory_aux = LinearPredictor(sensory_dim, embed_dim)
         else:
             self.sensory_aux = None
@@ -64,9 +61,7 @@ class AuxComputer(nn.Module):
         sensory = aux_input['sensory']
         q_logits = aux_input['q_logits']
 
-        aux_output = {}
-        aux_output['attn_mask'] = aux_input['attn_mask']
-
+        aux_output = {'attn_mask': aux_input['attn_mask']}
         if self.sensory_aux is not None:
             # B*num_objects*H*W
             logits = self.sensory_aux(pix_feat, sensory)

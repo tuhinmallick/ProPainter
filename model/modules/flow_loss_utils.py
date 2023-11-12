@@ -37,12 +37,13 @@ def flow_warp(x,
     grid_flow_x = 2.0 * grid_flow[:, :, :, 0] / max(w - 1, 1) - 1.0
     grid_flow_y = 2.0 * grid_flow[:, :, :, 1] / max(h - 1, 1) - 1.0
     grid_flow = torch.stack((grid_flow_x, grid_flow_y), dim=3)
-    output = F.grid_sample(x,
-                           grid_flow,
-                           mode=interpolation,
-                           padding_mode=padding_mode,
-                           align_corners=align_corners)
-    return output
+    return F.grid_sample(
+        x,
+        grid_flow,
+        mode=interpolation,
+        padding_mode=padding_mode,
+        align_corners=align_corners,
+    )
 
 
 # def image_warp(image, flow):
@@ -82,8 +83,7 @@ def fbConsistencyCheck(flow_fw, flow_bw, alpha1=0.01, alpha2=0.5):
 
 def rgb2gray(image):
     gray_image = image[:, 0] * 0.299 + image[:, 1] * 0.587 + 0.110 * image[:, 2]
-    gray_image = gray_image.unsqueeze(1)
-    return gray_image
+    return gray_image.unsqueeze(1)
 
 
 def ternary_transform(image, max_distance=1):
@@ -95,15 +95,13 @@ def ternary_transform(image, max_distance=1):
     weights = torch.from_numpy(w).float().to(device)
     patches = F.conv2d(intensities, weights, stride=1, padding=1)
     transf = patches - intensities
-    transf_norm = transf / torch.sqrt(0.81 + torch.square(transf))
-    return transf_norm
+    return transf / torch.sqrt(0.81 + torch.square(transf))
 
 
 def hamming_distance(t1, t2):
     dist = torch.square(t1 - t2)
     dist_norm = dist / (0.1 + dist)
-    dist_sum = torch.sum(dist_norm, dim=1, keepdim=True)
-    return dist_sum
+    return torch.sum(dist_norm, dim=1, keepdim=True)
 
 
 def create_mask(mask, paddings):
@@ -136,7 +134,6 @@ def ternary_loss2(frame1, warp_frame21, confMask, masks, max_distance=1):
     """
     t1 = ternary_transform(frame1)
     t21 = ternary_transform(warp_frame21)
-    dist = hamming_distance(t1, t21) 
-    loss = torch.mean(dist * confMask * masks) / torch.mean(masks)
-    return loss
+    dist = hamming_distance(t1, t21)
+    return torch.mean(dist * confMask * masks) / torch.mean(masks)
 

@@ -83,10 +83,7 @@ class MainToGroupDistributor(nn.Module):
         if not skip_expand:
             x = x.unsqueeze(1).expand(-1, num_objects, -1, -1, -1)
         if self.method == 'cat':
-            if self.reverse_order:
-                g = torch.cat([g, x], 2)
-            else:
-                g = torch.cat([x, g], 2)
+            g = torch.cat([g, x], 2) if self.reverse_order else torch.cat([x, g], 2)
         elif self.method == 'add':
             g = x + g
         elif self.method == 'mulcat':

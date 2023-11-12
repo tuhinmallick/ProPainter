@@ -22,7 +22,7 @@ class CorrBlock:
         corr = corr.reshape(batch*h1*w1, dim, h2, w2)
 
         self.corr_pyramid.append(corr)
-        for i in range(self.num_levels-1):
+        for _ in range(self.num_levels-1):
             corr = F.avg_pool2d(corr, 2, stride=2)
             self.corr_pyramid.append(corr)
 
@@ -86,7 +86,7 @@ class AlternateCorrBlock:
         self.radius = radius
 
         self.pyramid = [(fmap1, fmap2)]
-        for i in range(self.num_levels):
+        for _ in range(self.num_levels):
             fmap1 = F.avg_pool2d(fmap1, 2, stride=2)
             fmap2 = F.avg_pool2d(fmap2, 2, stride=2)
             self.pyramid.append((fmap1, fmap2))

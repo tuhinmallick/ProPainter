@@ -31,9 +31,7 @@ def calculate_psnr(img1, img2):
         (f'Image shapes are differnet: {img1.shape}, {img2.shape}.')
 
     mse = np.mean((img1 - img2)**2)
-    if mse == 0:
-        return float('inf')
-    return 20. * np.log10(255. / np.sqrt(mse))
+    return float('inf') if mse == 0 else 20. * np.log10(255. / np.sqrt(mse))
 
 
 def calc_psnr_and_ssim(img1, img2):
@@ -141,7 +139,7 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
     if np.iscomplexobj(covmean):
         if not np.allclose(np.diagonal(covmean).imag, 0, atol=1e-3):
             m = np.max(np.abs(covmean.imag))
-            raise ValueError('Imaginary component {}'.format(m))
+            raise ValueError(f'Imaginary component {m}')
         covmean = covmean.real
 
     tr_covmean = np.trace(covmean)
@@ -290,37 +288,49 @@ class InceptionModule(nn.Module):
     def __init__(self, in_channels, out_channels, name):
         super(InceptionModule, self).__init__()
 
-        self.b0 = Unit3D(in_channels=in_channels,
-                         output_channels=out_channels[0],
-                         kernel_shape=[1, 1, 1],
-                         padding=0,
-                         name=name + '/Branch_0/Conv3d_0a_1x1')
-        self.b1a = Unit3D(in_channels=in_channels,
-                          output_channels=out_channels[1],
-                          kernel_shape=[1, 1, 1],
-                          padding=0,
-                          name=name + '/Branch_1/Conv3d_0a_1x1')
-        self.b1b = Unit3D(in_channels=out_channels[1],
-                          output_channels=out_channels[2],
-                          kernel_shape=[3, 3, 3],
-                          name=name + '/Branch_1/Conv3d_0b_3x3')
-        self.b2a = Unit3D(in_channels=in_channels,
-                          output_channels=out_channels[3],
-                          kernel_shape=[1, 1, 1],
-                          padding=0,
-                          name=name + '/Branch_2/Conv3d_0a_1x1')
-        self.b2b = Unit3D(in_channels=out_channels[3],
-                          output_channels=out_channels[4],
-                          kernel_shape=[3, 3, 3],
-                          name=name + '/Branch_2/Conv3d_0b_3x3')
+        self.b0 = Unit3D(
+            in_channels=in_channels,
+            output_channels=out_channels[0],
+            kernel_shape=[1, 1, 1],
+            padding=0,
+            name=f'{name}/Branch_0/Conv3d_0a_1x1',
+        )
+        self.b1a = Unit3D(
+            in_channels=in_channels,
+            output_channels=out_channels[1],
+            kernel_shape=[1, 1, 1],
+            padding=0,
+            name=f'{name}/Branch_1/Conv3d_0a_1x1',
+        )
+        self.b1b = Unit3D(
+            in_channels=out_channels[1],
+            output_channels=out_channels[2],
+            kernel_shape=[3, 3, 3],
+            name=f'{name}/Branch_1/Conv3d_0b_3x3',
+        )
+        self.b2a = Unit3D(
+            in_channels=in_channels,
+            output_channels=out_channels[3],
+            kernel_shape=[1, 1, 1],
+            padding=0,
+            name=f'{name}/Branch_2/Conv3d_0a_1x1',
+        )
+        self.b2b = Unit3D(
+            in_channels=out_channels[3],
+            output_channels=out_channels[4],
+            kernel_shape=[3, 3, 3],
+            name=f'{name}/Branch_2/Conv3d_0b_3x3',
+        )
         self.b3a = MaxPool3dSamePadding(kernel_size=[3, 3, 3],
                                         stride=(1, 1, 1),
                                         padding=0)
-        self.b3b = Unit3D(in_channels=in_channels,
-                          output_channels=out_channels[5],
-                          kernel_shape=[1, 1, 1],
-                          padding=0,
-                          name=name + '/Branch_3/Conv3d_0b_1x1')
+        self.b3b = Unit3D(
+            in_channels=in_channels,
+            output_channels=out_channels[5],
+            kernel_shape=[1, 1, 1],
+            padding=0,
+            name=f'{name}/Branch_3/Conv3d_0b_1x1',
+        )
         self.name = name
 
     def forward(self, x):
@@ -393,7 +403,7 @@ class InceptionI3d(nn.Module):
         """
 
         if final_endpoint not in self.VALID_ENDPOINTS:
-            raise ValueError('Unknown final endpoint %s' % final_endpoint)
+            raise ValueError(f'Unknown final endpoint {final_endpoint}')
 
         super(InceptionI3d, self).__init__()
         self._num_classes = num_classes
@@ -402,17 +412,19 @@ class InceptionI3d(nn.Module):
         self.logits = None
 
         if self._final_endpoint not in self.VALID_ENDPOINTS:
-            raise ValueError('Unknown final endpoint %s' %
-                             self._final_endpoint)
+            raise ValueError(f'Unknown final endpoint {self._final_endpoint}')
 
-        self.end_points = {}
         end_point = 'Conv3d_1a_7x7'
-        self.end_points[end_point] = Unit3D(in_channels=in_channels,
-                                            output_channels=64,
-                                            kernel_shape=[7, 7, 7],
-                                            stride=(2, 2, 2),
-                                            padding=(3, 3, 3),
-                                            name=name + end_point)
+        self.end_points = {
+            end_point: Unit3D(
+                in_channels=in_channels,
+                output_channels=64,
+                kernel_shape=[7, 7, 7],
+                stride=(2, 2, 2),
+                padding=(3, 3, 3),
+                name=name + end_point,
+            )
+        }
         if self._final_endpoint == end_point:
             return
 
@@ -563,7 +575,4 @@ class InceptionI3d(nn.Module):
                 x = self._modules[end_point](x)
                 if end_point == target_endpoint:
                     break
-        if target_endpoint == 'Logits':
-            return x.mean(4).mean(3).mean(2)
-        else:
-            return x
+        return x.mean(4).mean(3).mean(2) if target_endpoint == 'Logits' else x

@@ -46,11 +46,10 @@ def gaussian_blur2d(
     if separable:
         kernel_x: torch.Tensor = get_gaussian_kernel1d(kernel_size[1], sigma[1])
         kernel_y: torch.Tensor = get_gaussian_kernel1d(kernel_size[0], sigma[0])
-        out = filter2d_separable(input, kernel_x[None], kernel_y[None], border_type)
+        return filter2d_separable(input, kernel_x[None], kernel_y[None], border_type)
     else:
         kernel: torch.Tensor = get_gaussian_kernel2d(kernel_size, sigma)
-        out = filter2d(input, kernel[None], border_type)
-    return out
+        return filter2d(input, kernel[None], border_type)
 
 
 class GaussianBlur2d(nn.Module):

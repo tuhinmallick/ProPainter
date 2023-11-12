@@ -48,11 +48,11 @@ class CUTIE(nn.Module):
             return None
 
         num_objects = masks.shape[1]
-        if num_objects >= 1:
-            others = (masks.sum(dim=1, keepdim=True) - masks).clamp(0, 1)
-        else:
-            others = torch.zeros_like(masks)
-        return others
+        return (
+            (masks.sum(dim=1, keepdim=True) - masks).clamp(0, 1)
+            if num_objects >= 1
+            else torch.zeros_like(masks)
+        )
 
     def encode_image(self, image: torch.Tensor) -> (Iterable[torch.Tensor], torch.Tensor):
         image = (image - self.pixel_mean) / self.pixel_std
@@ -140,13 +140,9 @@ class CUTIE(nn.Module):
                      chunk_size: int = -1) -> torch.Tensor:
         last_mask = F.interpolate(last_mask, size=sensory.shape[-2:], mode='area')
         last_others = self._get_others(last_mask)
-        fused = self.pixel_fuser(pix_feat,
-                                 pixel,
-                                 sensory,
-                                 last_mask,
-                                 last_others,
-                                 chunk_size=chunk_size)
-        return fused
+        return self.pixel_fuser(
+            pix_feat, pixel, sensory, last_mask, last_others, chunk_size=chunk_size
+        )
 
     def readout_query(self,
                       pixel_readout,
@@ -223,7 +219,7 @@ class CUTIE(nn.Module):
                         else:
                             log.info(f'Zero-initialized padding for {k}.')
                         src_dict[k] = torch.cat([src_dict[k], pads], 1)
-        elif self.single_object:
+        else:
             """
             If the model is multiple-object and we are training in single-object, 
             we strip the last channel of conv1.

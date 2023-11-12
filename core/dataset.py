@@ -113,10 +113,7 @@ class TrainDataset(torch.utils.data.Dataset):
                     if self.load_flow:
                         flows_f.reverse()
                         flows_b.reverse()
-                        flows_ = flows_f
-                        flows_f = flows_b
-                        flows_b = flows_
-                
+                        flows_f, flows_b = flows_b, flows_f
         if self.load_flow:
             frames, flows_f, flows_b = GroupRandomHorizontalFlowFlip()(frames, flows_f, flows_b)
         else:
@@ -190,7 +187,9 @@ class TestDataset(torch.utils.data.Dataset):
 
             frames.append(img)
 
-            mask_path = os.path.join(self.mask_root, video_name, str(idx).zfill(5) + '.png')
+            mask_path = os.path.join(
+                self.mask_root, video_name, f'{str(idx).zfill(5)}.png'
+            )
             mask = Image.open(mask_path).resize(self.size, Image.NEAREST).convert('L')
 
             # origin: 0 indicates missing. now: 1 indicates missing
@@ -219,7 +218,7 @@ class TestDataset(torch.utils.data.Dataset):
         frames_PIL = [np.array(f).astype(np.uint8) for f in frames]
         frame_tensors = self._to_tensors(frames) * 2.0 - 1.0
         mask_tensors = self._to_tensors(masks)
-        
+
         if self.load_flow:
             flows_f = np.stack(flows_f, axis=-1) # H W 2 T-1
             flows_b = np.stack(flows_b, axis=-1)

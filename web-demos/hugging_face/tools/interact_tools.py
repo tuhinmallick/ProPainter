@@ -52,14 +52,14 @@ class SamControler():
         # self.sam_controler.set_image(image)
         origal_image = self.sam_controler.orignal_image
         neg_flag = labels[-1]
+        #find neg
+        prompts = {
+            'point_coords': points,
+            'point_labels': labels,
+        }
+        masks, scores, logits = self.sam_controler.predict(prompts, 'point', multimask)
+        mask, logit = masks[np.argmax(scores)], logits[np.argmax(scores), :, :]
         if neg_flag==1:
-            #find neg
-            prompts = {
-                'point_coords': points,
-                'point_labels': labels,
-            }
-            masks, scores, logits = self.sam_controler.predict(prompts, 'point', multimask)
-            mask, logit = masks[np.argmax(scores)], logits[np.argmax(scores), :, :]
             prompts = {
                 'point_coords': points,
                 'point_labels': labels,
@@ -67,23 +67,13 @@ class SamControler():
             }
             masks, scores, logits = self.sam_controler.predict(prompts, 'both', multimask)
             mask, logit = masks[np.argmax(scores)], logits[np.argmax(scores), :, :]
-        else:
-           #find positive
-            prompts = {
-                'point_coords': points,
-                'point_labels': labels,
-            }
-            masks, scores, logits = self.sam_controler.predict(prompts, 'point', multimask)
-            mask, logit = masks[np.argmax(scores)], logits[np.argmax(scores), :, :]
-            
-        
         assert len(points)==len(labels)
-        
+
         painted_image = mask_painter(image, mask.astype('uint8'), mask_color, mask_alpha, contour_color, contour_width)
         painted_image = point_painter(painted_image, np.squeeze(points[np.argwhere(labels>0)],axis = 1), point_color_ne, point_alpha, point_radius, contour_color, contour_width)
         painted_image = point_painter(painted_image, np.squeeze(points[np.argwhere(labels<1)],axis = 1), point_color_ps, point_alpha, point_radius, contour_color, contour_width)
         painted_image = Image.fromarray(painted_image)
-        
+
         return mask, logit, painted_image
     
     

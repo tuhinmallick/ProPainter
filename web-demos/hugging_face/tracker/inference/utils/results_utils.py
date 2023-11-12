@@ -91,12 +91,7 @@ class ResultSaver:
                                                                                                  0]
         # Probability mask -> index mask
         mask = torch.argmax(prob, dim=0)
-        if self.save_scores:
-            # also need to pass prob
-            prob = prob.cpu()
-        else:
-            prob = None
-
+        prob = prob.cpu() if self.save_scores else None
         # remap indices
         if self.need_remapping:
             new_mask = torch.zeros_like(mask)
@@ -150,7 +145,6 @@ def save_result(queue: Queue):
         last_frame = args.last_frame
         all_obj_ids = [k.id for k in obj_to_tmp_id]
 
-        # record output in the json file
         if saver.json_style == 'burst':
             if frame_name in saver.annotated_frames:
                 frame_index = saver.annotated_frames.index(frame_name)
@@ -189,7 +183,7 @@ def save_result(queue: Queue):
 
             this_out_path = path.join(saver.output_root, saver.video_name)
             os.makedirs(this_out_path, exist_ok=True)
-            out_img.save(os.path.join(this_out_path, frame_name[:-4] + '.png'))
+            out_img.save(os.path.join(this_out_path, f'{frame_name[:-4]}.png'))
 
         # save scores for multi-scale testing
         if saver.save_scores:
@@ -200,7 +194,11 @@ def save_result(queue: Queue):
 
             if last_frame:
                 tmp_to_obj_mapping = {obj.id: tmp_id for obj, tmp_id in tmp_id_to_obj.items()}
-                hkl.dump(tmp_to_obj_mapping, path.join(this_out_path, f'backward.hkl'), mode='w')
+                hkl.dump(
+                    tmp_to_obj_mapping,
+                    path.join(this_out_path, 'backward.hkl'),
+                    mode='w',
+                )
 
             hkl.dump(prob,
                      path.join(this_out_path, f'{frame_name[:-4]}.hkl'),
@@ -228,7 +226,7 @@ def save_result(queue: Queue):
             # find a place to save the visualization
             this_vis_path = path.join(saver.visualize_output_root, saver.video_name)
             os.makedirs(this_vis_path, exist_ok=True)
-            Image.fromarray(blend).save(path.join(this_vis_path, frame_name[:-4] + '.jpg'))
+            Image.fromarray(blend).save(path.join(this_vis_path, f'{frame_name[:-4]}.jpg'))
 
         queue.task_done()
 

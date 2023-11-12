@@ -16,9 +16,7 @@ class ObjectInfo:
         return hash(self.id)
 
     def __eq__(self, other):
-        if type(other) == int:
-            return self.id == other
-        return self.id == other.id
+        return self.id == other if type(other) == int else self.id == other.id
 
     def __repr__(self):
         return f'(ID: {self.id})'

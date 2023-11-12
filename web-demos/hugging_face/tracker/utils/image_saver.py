@@ -6,13 +6,11 @@ from collections import defaultdict
 
 
 def tensor_to_numpy(image):
-    image_np = (image.numpy() * 255).astype('uint8')
-    return image_np
+    return (image.numpy() * 255).astype('uint8')
 
 
 def tensor_to_np_float(image):
-    image_np = image.numpy().astype('float32')
-    return image_np
+    return image.numpy().astype('float32')
 
 
 def detach_to_cpu(x):
@@ -57,14 +55,13 @@ def get_image_array(images, grid_shape, captions={}):
     font = cv2.FONT_HERSHEY_SIMPLEX
 
     output_image = np.zeros([w * cate_counts, h * (rows_counts + 1), 3], dtype=np.uint8)
-    col_cnt = 0
-    for k, v in images.items():
+    # Handles new line character
+    dy = 40
+    for col_cnt, (k, v) in enumerate(images.items()):
 
         # Default as key value itself
         caption = captions.get(k, k)
 
-        # Handles new line character
-        dy = 40
         for i, line in enumerate(caption.split('\n')):
             cv2.putText(output_image, line, (10, col_cnt * w + 100 + i * dy), font, 0.8,
                         (255, 255, 255), 2, cv2.LINE_AA)
@@ -80,18 +77,12 @@ def get_image_array(images, grid_shape, captions={}):
             output_image[(col_cnt + 0) * w:(col_cnt + 1) * w,
                          (row_cnt + 1) * h:(row_cnt + 2) * h, :] = img
 
-        col_cnt += 1
-
     return output_image
 
 
 def base_transform(im, size):
     im = tensor_to_np_float(im)
-    if len(im.shape) == 3:
-        im = im.transpose((1, 2, 0))
-    else:
-        im = im[:, :, None]
-
+    im = im.transpose((1, 2, 0)) if len(im.shape) == 3 else im[:, :, None]
     # Resize
     if im.shape[1] != size:
         im = cv2.resize(im, size, interpolation=cv2.INTER_NEAREST)
@@ -135,10 +126,9 @@ def vis(images, size, num_objects):
     # find max num objects
     max_num_objects = max(num_objects[:b])
 
-    GT_suffix = ''
-    for bi in range(b):
-        GT_suffix += ' \n%s' % images['info']['name'][bi][-25:-4]
-
+    GT_suffix = ''.join(
+        ' \n%s' % images['info']['name'][bi][-25:-4] for bi in range(b)
+    )
     for bi in range(b):
         for ti in range(t):
             req_images['RGB'].append(im_transform(images['rgb'][bi, ti], size))
@@ -185,10 +175,9 @@ def vis_debug(images, size, num_objects):
     # find max num objects
     max_num_objects = max(num_objects[:b])
 
-    GT_suffix = ''
-    for bi in range(b):
-        GT_suffix += ' \n%s' % images['info']['name'][bi][-25:-4]
-
+    GT_suffix = ''.join(
+        ' \n%s' % images['info']['name'][bi][-25:-4] for bi in range(b)
+    )
     for bi in range(b):
         for ti in range(t):
             req_images['RGB'].append(im_transform(images['rgb'][bi, ti], size))

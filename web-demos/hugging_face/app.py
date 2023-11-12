@@ -43,13 +43,12 @@ def get_prompt(click_state, click_input):
         labels.append(input[2])
     click_state[0] = points
     click_state[1] = labels
-    prompt = {
-        "prompt_type":["click"],
-        "input_point":click_state[0],
-        "input_label":click_state[1],
-        "multimask_output":"True",
+    return {
+        "prompt_type": ["click"],
+        "input_point": click_state[0],
+        "input_label": click_state[1],
+        "multimask_output": "True",
     }
-    return prompt
 
 # extract frames from upload video
 def get_frames_from_video(video_input, video_state):
@@ -69,18 +68,17 @@ def get_frames_from_video(video_input, video_state):
         fps = cap.get(cv2.CAP_PROP_FPS)
         while cap.isOpened():
             ret, frame = cap.read()
-            if ret == True:
-                current_memory_usage = psutil.virtual_memory().percent
-                frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                if current_memory_usage > 90:
-                    operation_log = [("Memory usage is too high (>90%). Stop the video extraction. Please reduce the video resolution or frame rate.", "Error")]
-                    print("Memory usage is too high (>90%). Please reduce the video resolution or frame rate.")
-                    break
-            else:
+            if ret != True:
+                break
+            current_memory_usage = psutil.virtual_memory().percent
+            frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            if current_memory_usage > 90:
+                operation_log = [("Memory usage is too high (>90%). Stop the video extraction. Please reduce the video resolution or frame rate.", "Error")]
+                print("Memory usage is too high (>90%). Please reduce the video resolution or frame rate.")
                 break
     except (OSError, TypeError, ValueError, KeyError, SyntaxError) as e:
-        print("read_frame_source:{} error. {}\n".format(video_path, str(e)))
-    image_size = (frames[0].shape[0],frames[0].shape[1]) 
+        print(f"read_frame_source:{video_path} error. {str(e)}\n")
+    image_size = (frames[0].shape[0],frames[0].shape[1])
     # initialize video_state
     video_state = {
         "user_name": user_name,
@@ -92,8 +90,8 @@ def get_frames_from_video(video_input, video_state):
         "select_frame_number": 0,
         "fps": fps
         }
-    video_info = "Video Name: {},\nFPS: {},\nTotal Frames: {},\nImage Size:{}".format(video_state["video_name"], round(video_state["fps"], 0), len(frames), image_size)
-    model.samcontroler.sam_controler.reset_image() 
+    video_info = f'Video Name: {video_state["video_name"]},\nFPS: {round(video_state["fps"], 0)},\nTotal Frames: {len(frames)},\nImage Size:{image_size}'
+    model.samcontroler.sam_controler.reset_image()
     model.samcontroler.sam_controler.set_image(video_state["origin_images"][0])
     return video_state, video_info, video_state["origin_images"][0], gr.update(visible=True, maximum=len(frames), value=1), gr.update(visible=True, maximum=len(frames), value=len(frames)), \
                         gr.update(visible=True), gr.update(visible=True), \
@@ -116,14 +114,26 @@ def select_template(image_selection_slider, video_state, interactive_state, mask
     model.samcontroler.sam_controler.reset_image()
     model.samcontroler.sam_controler.set_image(video_state["origin_images"][image_selection_slider])
 
-    operation_log = [("",""), ("Select tracking start frame {}. Try to click the image to add masks for tracking.".format(image_selection_slider),"Normal")]
+    operation_log = [
+        ("", ""),
+        (
+            f"Select tracking start frame {image_selection_slider}. Try to click the image to add masks for tracking.",
+            "Normal",
+        ),
+    ]
 
     return video_state["painted_images"][image_selection_slider], video_state, interactive_state, operation_log, operation_log
 
 # set the tracking end frame
 def get_end_number(track_pause_number_slider, video_state, interactive_state):
     interactive_state["track_end_number"] = track_pause_number_slider
-    operation_log = [("",""),("Select tracking finish frame {}.Try to click the image to add masks for tracking.".format(track_pause_number_slider),"Normal")]
+    operation_log = [
+        ("", ""),
+        (
+            f"Select tracking finish frame {track_pause_number_slider}.Try to click the image to add masks for tracking.",
+            "Normal",
+        ),
+    ]
 
     return video_state["painted_images"][track_pause_number_slider],interactive_state, operation_log, operation_log
 
@@ -136,12 +146,12 @@ def sam_refine(video_state, point_prompt, click_state, interactive_state, evt:gr
         click_state: [[points], [labels]]
     """
     if point_prompt == "Positive":
-        coordinate = "[[{},{},1]]".format(evt.index[0], evt.index[1])
+        coordinate = f"[[{evt.index[0]},{evt.index[1]},1]]"
         interactive_state["positive_click_times"] += 1
     else:
-        coordinate = "[[{},{},0]]".format(evt.index[0], evt.index[1])
+        coordinate = f"[[{evt.index[0]},{evt.index[1]},0]]"
         interactive_state["negative_click_times"] += 1
-    
+
     # prompt for sam model
     model.samcontroler.sam_controler.reset_image()
     model.samcontroler.sam_controler.set_image(video_state["origin_images"][video_state["select_frame_number"]])
@@ -192,8 +202,14 @@ def show_mask(video_state, interactive_state, mask_dropdown):
         mask_number = int(mask_dropdown[i].split("_")[1]) - 1
         mask = interactive_state["multi_mask"]["masks"][mask_number]
         select_frame = mask_painter(select_frame, mask.astype('uint8'), mask_color=mask_number+2)
-    
-    operation_log = [("",""), ("Added masks {}. If you want to do the inpainting with current masks, please go to step3, and click the Tracking button first and then Inpainting button.".format(mask_dropdown),"Normal")]
+
+    operation_log = [
+        ("", ""),
+        (
+            f"Added masks {mask_dropdown}. If you want to do the inpainting with current masks, please go to step3, and click the Tracking button first and then Inpainting button.",
+            "Normal",
+        ),
+    ]
     return select_frame, operation_log, operation_log
 
 # tracking vos
@@ -236,24 +252,33 @@ def vos_tracking_video(video_state, interactive_state, mask_dropdown):
         video_state["logits"][video_state["select_frame_number"]:] = logits
         video_state["painted_images"][video_state["select_frame_number"]:] = painted_images
 
-    video_output = generate_video_from_frames(video_state["painted_images"], output_path="./result/track/{}".format(video_state["video_name"]), fps=fps) # import video_input to name the output video
+    video_output = generate_video_from_frames(
+        video_state["painted_images"],
+        output_path=f'./result/track/{video_state["video_name"]}',
+        fps=fps,
+    )
     interactive_state["inference_times"] += 1
-    
-    print("For generating this tracking result, inference times: {}, click times: {}, positive: {}, negative: {}".format(interactive_state["inference_times"], 
-                                                                                                                                           interactive_state["positive_click_times"]+interactive_state["negative_click_times"],
-                                                                                                                                           interactive_state["positive_click_times"],
-                                                                                                                                        interactive_state["negative_click_times"]))
+
+    print(
+        f'For generating this tracking result, inference times: {interactive_state["inference_times"]}, click times: {interactive_state["positive_click_times"] + interactive_state["negative_click_times"]}, positive: {interactive_state["positive_click_times"]}, negative: {interactive_state["negative_click_times"]}'
+    )
 
     #### shanggao code for mask save
     if interactive_state["mask_save"]:
-        if not os.path.exists('./result/mask/{}'.format(video_state["video_name"].split('.')[0])):
-            os.makedirs('./result/mask/{}'.format(video_state["video_name"].split('.')[0]))
-        i = 0
+        if not os.path.exists(
+            f"""./result/mask/{video_state["video_name"].split('.')[0]}"""
+        ):
+            os.makedirs(f"""./result/mask/{video_state["video_name"].split('.')[0]}""")
         print("save mask")
-        for mask in video_state["masks"]:
-            np.save(os.path.join('./result/mask/{}'.format(video_state["video_name"].split('.')[0]), '{:05d}.npy'.format(i)), mask)
-            i+=1
-        # save_mask(video_state["masks"], video_state["video_name"])
+        for i, mask in enumerate(video_state["masks"]):
+            np.save(
+                os.path.join(
+                    f"""./result/mask/{video_state["video_name"].split('.')[0]}""",
+                    '{:05d}.npy'.format(i),
+                ),
+                mask,
+            )
+            # save_mask(video_state["masks"], video_state["video_name"])
     #### shanggao code for mask save
     return video_output, video_state, interactive_state, operation_log, operation_log
 
@@ -276,7 +301,7 @@ def inpaint_video(video_state, resize_ratio_number, dilate_radius_number, raft_i
         if i in inpaint_mask_numbers:
             continue
         inpaint_masks[inpaint_masks==i] = 0
-    
+
     # inpaint for videos
     inpainted_frames = model.baseinpainter.inpaint(frames, 
                                                    inpaint_masks, 
@@ -287,7 +312,11 @@ def inpaint_video(video_state, resize_ratio_number, dilate_radius_number, raft_i
                                                    neighbor_length=neighbor_length_number, 
                                                    ref_stride=ref_stride_number)   # numpy array, T, H, W, 3
 
-    video_output = generate_video_from_frames(inpainted_frames, output_path="./result/inpaint/{}".format(video_state["video_name"]), fps=fps) # import video_input to name the output video
+    video_output = generate_video_from_frames(
+        inpainted_frames,
+        output_path=f'./result/inpaint/{video_state["video_name"]}',
+        fps=fps,
+    )
 
     return video_output, operation_log, operation_log
 

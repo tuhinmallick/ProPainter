@@ -39,9 +39,9 @@ def resize_frames(frames, size=None):
     else:
         out_size = frames[0].size
         process_size = (out_size[0]-out_size[0]%8, out_size[1]-out_size[1]%8)
-        if not out_size == process_size:
+        if out_size != process_size:
             frames = [f.resize(process_size) for f in frames]
-        
+
     return frames, process_size, out_size
 
 
@@ -78,14 +78,12 @@ def read_mask(mpath, length, size, flow_mask_dilates=8, mask_dilates=5):
     masks_img = []
     masks_dilated = []
     flow_masks = []
-    
+
     if mpath.endswith(('jpg', 'jpeg', 'png', 'JPG', 'JPEG', 'PNG')): # input single img path
-       masks_img = [Image.open(mpath)]
+        masks_img = [Image.open(mpath)]
     else:  
         mnames = sorted(os.listdir(mpath))
-        for mp in mnames:
-            masks_img.append(Image.open(os.path.join(mpath, mp)))
-          
+        masks_img.extend(Image.open(os.path.join(mpath, mp)) for mp in mnames)
     for mask_img in masks_img:
         if size is not None:
             mask_img = mask_img.resize(size, Image.NEAREST)
@@ -100,16 +98,16 @@ def read_mask(mpath, length, size, flow_mask_dilates=8, mask_dilates=5):
         # flow_mask_img = cv2.morphologyEx(flow_mask_img, cv2.MORPH_CLOSE, np.ones((21, 21),np.uint8)).astype(bool)
         # flow_mask_img = scipy.ndimage.binary_fill_holes(flow_mask_img).astype(np.uint8)
         flow_masks.append(Image.fromarray(flow_mask_img * 255))
-        
+
         if mask_dilates > 0:
             mask_img = scipy.ndimage.binary_dilation(mask_img, iterations=mask_dilates).astype(np.uint8)
         else:
             mask_img = binary_mask(mask_img).astype(np.uint8)
         masks_dilated.append(Image.fromarray(mask_img * 255))
-    
+
     if len(masks_img) == 1:
-        flow_masks = flow_masks * length
-        masks_dilated = masks_dilated * length
+        flow_masks *= length
+        masks_dilated *= length
 
     return flow_masks, masks_dilated
 
@@ -123,8 +121,8 @@ def extrapolation(video_ori, scale):
     # Defines new FOV.
     imgH_extr = int(scale[0] * imgH)
     imgW_extr = int(scale[1] * imgW)
-    imgH_extr = imgH_extr - imgH_extr % 8
-    imgW_extr = imgW_extr - imgW_extr % 8
+    imgH_extr -= imgH_extr % 8
+    imgW_extr -= imgW_extr % 8
     H_start = int((imgH_extr - imgH) / 2)
     W_start = int((imgW_extr - imgW) / 2)
 
@@ -135,33 +133,27 @@ def extrapolation(video_ori, scale):
         frame[H_start: H_start + imgH, W_start: W_start + imgW, :] = v
         frames.append(Image.fromarray(frame))
 
-    # Generates the mask for missing region.
-    masks_dilated = []
-    flow_masks = []
-    
     dilate_h = 4 if H_start > 10 else 0
     dilate_w = 4 if W_start > 10 else 0
     mask = np.ones(((imgH_extr, imgW_extr)), dtype=np.uint8)
-    
+
     mask[H_start+dilate_h: H_start+imgH-dilate_h, 
          W_start+dilate_w: W_start+imgW-dilate_w] = 0
-    flow_masks.append(Image.fromarray(mask * 255))
-
+    flow_masks = [Image.fromarray(mask * 255)]
     mask[H_start: H_start+imgH, W_start: W_start+imgW] = 0
-    masks_dilated.append(Image.fromarray(mask * 255))
-  
-    flow_masks = flow_masks * nFrame
-    masks_dilated = masks_dilated * nFrame
-    
+    masks_dilated = [Image.fromarray(mask * 255)]
+    flow_masks *= nFrame
+    masks_dilated *= nFrame
+
     return frames, flow_masks, masks_dilated, (imgW_extr, imgH_extr)
 
 
 def get_ref_index(mid_neighbor_id, neighbor_ids, length, ref_stride=10, ref_num=-1):
     ref_index = []
     if ref_num == -1:
-        for i in range(0, length, ref_stride):
-            if i not in neighbor_ids:
-                ref_index.append(i)
+        ref_index.extend(
+            i for i in range(0, length, ref_stride) if i not in neighbor_ids
+        )
     else:
         start_idx = max(0, mid_neighbor_id - ref_stride * (ref_num // 2))
         end_idx = min(length, mid_neighbor_id + ref_stride * (ref_num // 2))

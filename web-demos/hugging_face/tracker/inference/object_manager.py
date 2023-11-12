@@ -118,14 +118,14 @@ class ObjectManager:
         return output
 
     def make_one_hot(self, cls_mask) -> torch.Tensor:
-        output = []
-        for _, obj in self.tmp_id_to_obj.items():
-            output.append(cls_mask == obj.id)
-        if len(output) == 0:
-            output = torch.zeros((0, *cls_mask.shape), dtype=torch.bool, device=cls_mask.device)
-        else:
-            output = torch.stack(output, dim=0)
-        return output
+        output = [cls_mask == obj.id for _, obj in self.tmp_id_to_obj.items()]
+        return (
+            torch.zeros(
+                (0, *cls_mask.shape), dtype=torch.bool, device=cls_mask.device
+            )
+            if not output
+            else torch.stack(output, dim=0)
+        )
 
     @property
     def all_obj_ids(self) -> List[int]:
@@ -136,10 +136,7 @@ class ObjectManager:
         return len(self.obj_to_tmp_id)
 
     def has_all(self, objects: List[int]) -> bool:
-        for obj in objects:
-            if obj not in self.obj_to_tmp_id:
-                return False
-        return True
+        return all(obj in self.obj_to_tmp_id for obj in objects)
 
     def find_object_by_id(self, obj_id) -> ObjectInfo:
         return self.obj_id_to_obj[obj_id]

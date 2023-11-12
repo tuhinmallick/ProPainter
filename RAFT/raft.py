@@ -29,21 +29,20 @@ class RAFT(nn.Module):
         if args.small:
             self.hidden_dim = hdim = 96
             self.context_dim = cdim = 64
-            args.corr_levels = 4
             args.corr_radius = 3
 
         else:
             self.hidden_dim = hdim = 128
             self.context_dim = cdim = 128
-            args.corr_levels = 4
             args.corr_radius = 4
 
+        args.corr_levels = 4
         if 'dropout' not in args._get_kwargs():
             args.dropout = 0
 
         if 'alternate_corr' not in args._get_kwargs():
             args.alternate_corr = False
-        
+
         # feature network, context network, and update block
         if args.small:
             self.fnet = SmallEncoder(output_dim=128, norm_fn='instance', dropout=args.dropout)
@@ -102,7 +101,7 @@ class RAFT(nn.Module):
 
         fmap1 = fmap1.float()
         fmap2 = fmap2.float()
-        
+
         if self.args.alternate_corr:
             corr_fn = AlternateCorrBlock(fmap1, fmap2, radius=self.args.corr_radius)
         else:
@@ -121,7 +120,7 @@ class RAFT(nn.Module):
             coords1 = coords1 + flow_init
 
         flow_predictions = []
-        for itr in range(iters):
+        for _ in range(iters):
             coords1 = coords1.detach()
             corr = corr_fn(coords1) # index correlation volume
 
@@ -133,14 +132,11 @@ class RAFT(nn.Module):
             coords1 = coords1 + delta_flow
 
             # upsample predictions
-            if up_mask is None:
-                flow_up = upflow8(coords1 - coords0)
-            else:
-                flow_up = self.upsample_flow(coords1 - coords0, up_mask)
-
+            flow_up = (
+                upflow8(coords1 - coords0)
+                if up_mask is None
+                else self.upsample_flow(coords1 - coords0, up_mask)
+            )
             flow_predictions.append(flow_up)
 
-        if test_mode:
-            return coords1 - coords0, flow_up
-
-        return flow_predictions
+        return (coords1 - coords0, flow_up) if test_mode else flow_predictions
